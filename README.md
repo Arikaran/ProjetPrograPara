@@ -18,7 +18,7 @@ Une partie théorique est également à mettre en application (loi d'Amdahl).
 ### Fonctionnement
 Le programme devra prendre deux arguments en entrée:
  * Une empreinte hexadécimale chiffrée de la phrase (ou du mot) à retouver
- * Le nombre de threads à lancer en parallèle
+ * Le nombre de threads à lancer en parallèle (une valeur par défaut est affectée si l'utilisateur n'en donne pas)
 
 L'application devra trouver, par la méthode de force-brute, à quel mot correspond l'empreinte fournie en entrée
 et le retourner à l'utilisateur.
