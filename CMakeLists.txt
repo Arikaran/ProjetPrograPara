@@ -8,7 +8,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g -fdiagnostics-color=auto -fmax-
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -fmax-errors=2")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}")
 
-set(SOURCE_FILES src/main.cpp src/main.cpp)
+set(SOURCE_FILES src/main.cpp src/sha256.cpp src/sha256.h)
 
 add_executable(main ${SOURCE_FILES})
 
