@@ -1,0 +1,1 @@
+/usr/bin/c++    -Wall -g -fdiagnostics-color=auto -fmax-errors=2 -std=c++11   CMakeFiles/main.dir/main.cpp.o  -o main -rdynamic -lpthread 
