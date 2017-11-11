@@ -2,6 +2,9 @@
 #include <queue>
 #include <mutex>
 #include <thread>
+#include <string>
+#include "thread.h"
+#include "SHA256.h"
 
 using namespace std;
 
@@ -47,22 +50,40 @@ void Produce(unsigned int length, string s)
 	}
 }
 
-void Consume(queue <string> myqueue){
+void Consume(queue <string> myqueue, string hashFromUser){
 	cout << "consume()..." << endl;
 
 	while (!myqueue.empty())
 	{
 		{
 			lock_guard<mutex> lock(globalMutex);				// lock mutex for this scope duration
-	    		cout << "consume() pop() : " << myqueue.front() << endl;
-	    		myqueue.pop();
-			std::this_thread::sleep_for(std::chrono::milliseconds(200));	// Sleep for 1 second	
+
+			string text = myqueue.front();					// get the text from the global queue
+			myqueue.pop();							// remove the text in the global queue
+
+	    		cout << "consume() pop() : " << text << endl;
+
+			char data[text.size()+1];
+			strcpy(data, text.c_str());
+
+			string sha256 = SHA256(data);					// hash the text
+
+			cout << "The hash is : "<< sha256 << endl;
+	
+			bool compare = compareHashes(hashFromUser, sha256);		// hashes comparison
+
+			if(compare == 1){
+				cout << "Hash found !" << endl;
+				exit(0);		
+			}
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000));	// Sleep for 1 second	
 		}
 	}
 	cout << "consume() done !" << endl;
 }
 
-void GenerateWords()
+void GenerateWords(string hashFromUser)
 {
 	string prefix = "a";
 	unsigned int stringlength = 2;
@@ -74,7 +95,7 @@ void GenerateWords()
 	}
 	cout << "produce() done !" << endl;
 
-	Consume(globalQueue);				// Consume words							
+	Consume(globalQueue, hashFromUser);				// Consume words							
 	
 }
 
@@ -82,8 +103,11 @@ int main()
 {	
 	// To compile : g++ generateWordv2.cpp -o generateWordv2 -std=c++11
 	// To run : ./generateWordv2
-	GenerateWords();
-	
+
+	string hashFromUser = "08389ec21e094342a0d7aaeb2ea21e184531a12f399b99f1efc29a1bea2143da";
+
+	GenerateWords(hashFromUser);
+
 	return 0;
 }
 
