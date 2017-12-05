@@ -3,7 +3,6 @@
 #include <mutex>
 #include <thread>
 #include <string>
-//#include <cstring>
 #include "thread.h"
 #include "SHA256.h"
 
@@ -28,17 +27,27 @@ public:
 
 	ProducerConsumer(uint8_t nbThreads, std::string hashFromUser)
 	{
-		string prefix = "a";
-		unsigned int stringlength = 2;
-		
-		cout << "produce()..."<<endl;
-		
-		for(int i = 0; i <= stringlength; i++){	
-			Produce(i, prefix);								// Produce words
+		thread t[nbThreads];
+		string prefix = "a";								
+/*
+		//Launch a group of producers threads
+		for (int i = 0; i < nbThreads; ++i) {
+			t[i] = std::thread(Producer_call_from_thread, i, prefix);
 		}
-		cout << "produce() done !" << endl;
 
-		Consume(hashFromUser);								// Consume words			
+		//Launch a group of producers threads
+		for (int i = 0; i < nbThreads; ++i) {
+			t[i] = std::thread(Consumer_call_from_thread, i);
+		}
+*/
+		// Function : Producer_call_from_thread(threadID, prefix)
+		// Consumer_call_from_thread(threadID, hash)
+		t[1] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 1, prefix);
+		t[2] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 2, hashFromUser);
+
+		//Join the threads with the main thread
+		t[1].join();
+		t[2].join();
 	}
 
 	~ProducerConsumer()
@@ -53,26 +62,44 @@ private:
     const uint8_t nbConsumer=1;
 	//std::deque<std::thread> producers;
 	//std::deque<std::thread> consumers;
-	const uint8_t nbThreads=1;
-    const std::string hashFromUser="";
+	//uint8_t nbThreads;
+    string hashFromUser="";
+
+    void Producer_call_from_thread(int tid, string prefix)
+    {	
+		cout << "Produce by thread n°" << tid << "\n" << endl;
+		unsigned int stringlength = 1;
+		
+		cout << "produce()..."<<endl;
+		
+		for(uint8_t i = 0; i <= stringlength; i++){
+			Produce(i, prefix);								// Produce words
+		}
+		cout << "produce() done !" << endl;
+    }
+
+    void Consumer_call_from_thread(int tid, string hashFromUser)
+    {	
+    	cout << "Consume by thread n°" << tid << "\n" << endl;
+    	Consume(hashFromUser);								// Consume words
+    }
 
 	// Recursive function, keeps clocking characters
 	// until length is reached
 	void Produce(unsigned int length, string s)
 	{
-		
 		if(length == 0) // when length has been reached
 		{
-			//cout << s << "\n"; // print it out
+			cout << "produce : " << s << "\n"; 										// Print text out
 			{
-				lock_guard<std::mutex> lock(this->mutex);					// lock mutex for this scope duration
+				lock_guard<std::mutex> lock(this->mutex);							// Lock mutex for this scope duration
 				queue.push(s);
-				//std::this_thread::sleep_for(std::chrono::milliseconds(10));		// Sleep for 1 second
 			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(100));				// Sleep for 1 second
 			return;
 		}
 
-		for(unsigned int i = 0; i < 63; i++) // iterate through Alphabets
+		for(unsigned int i = 0; i < 63; i++) 										// Iterate through Alphabets
 		{
 			// Create new string with next character
 			// Call generate again until string has reached it's length
@@ -87,29 +114,26 @@ private:
 		while (!queue.empty())
 		{
 			{
-				lock_guard<std::mutex> lock(this->mutex);				// lock mutex for this scope duration
+				lock_guard<std::mutex> lock(this->mutex);							// Lock mutex for this scope duration
 
-				string text = queue.front();					// get the text from the global queue
-				queue.pop();							// remove the text in the global queue
+				string text = queue.front();										// get the text from the global queue
+				queue.pop();														// remove the text in the global queue
 
-		    		cout << "consume() pop() : " << text << endl;
+		    	cout << "consume() pop() : " << text << endl;
 
 				char data[text.size()+1];
 				strcpy(data, text.c_str());
 
-				string sha256 = SHA256(data);					// hash the text
+				string sha256 = SHA256(data);										// hash the text
 
-				cout << "The hash is : "<< sha256 << endl;
-		
-				bool compare = compareHashes(hashFromUser, sha256);		// hashes comparison
+				bool compare = compareHashes(hashFromUser, sha256);					// hashes comparison
 
 				if(compare == 1){
-					cout << "Hash found !" << endl;
+					cout << "The hash "<< sha256 << "matches with the text : " << text << endl;
 					exit(0);		
 				}
-
-				std::this_thread::sleep_for(std::chrono::milliseconds(1000));	// Sleep for 1 second	
 			}
+			std::this_thread::sleep_for(std::chrono::milliseconds(1000));		// Sleep for 1 second
 		}
 		cout << "consume() done !" << endl;
 	}
@@ -119,14 +143,14 @@ private:
 
 int main(int argc, char* argv[])
 {	
-	// To compile : g++ ProducerConsumer.cpp -o ProducerConsumer -std=c++11
+	// To compile : g++ ProducerConsumer.cpp -std=c++11 -lpthread -o ProducerConsumer
 	// To run : ./ProducerConsumer 2 af1c08098cf119bb4981729721714a4b9948dbcb6b5fff21cb0f45f06ad1f7ea
 	uint8_t nbThreadsEnterred = 0;
 	std::string hashFromUser = "";
 	
 	switch (argc) {
 	    case 1:
-	        cout << "No arguments findf ound. Try again !\n";
+	        cout << "No arguments find found. Try again with exactly two arguments\n";
 	        break;
 	    case 2:
 	        cout << "Not enough arguments. Try again with exactly two arguments\n";
@@ -142,7 +166,6 @@ int main(int argc, char* argv[])
 	    	if(hashFromUser.length() == 64){
 	    		ProducerConsumer producerConsumer(nbThreadsEnterred, hashFromUser);			// Proceed
 	    	}else{
-	    		std::cout<<"Size : "<<hashFromUser.length()<<endl;
 	    		std::cout<<"Hash : "<<hashFromUser<<endl;
 	    		cout << "Incorrect hash. Check that the number of chars are equal to 64\n";
 	    	}
