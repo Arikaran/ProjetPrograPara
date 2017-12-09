@@ -3,6 +3,7 @@
 #include <mutex>
 #include <thread>
 #include <string>
+#include <functional>
 #include "thread.h"
 #include "SHA256.h"
 
@@ -25,29 +26,53 @@ public:
 		'8', '9', ' '
 	};
 
+	const char Prefixes[63] =
+	{
+		'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 
+		'k', 'l', 'm', 'n',	'o', 'p', 'q', 'r', 's', 't', 
+		'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D',
+		'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+		'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
+		'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', 
+		'8', '9', ' '
+	};
+
 	ProducerConsumer(uint8_t nbThreads, std::string hashFromUser)
 	{
 		thread t[nbThreads];
-		string prefix = "a";								
 /*
-		//Launch a group of producers threads
-		for (int i = 0; i < nbThreads; ++i) {
-			t[i] = std::thread(Producer_call_from_thread, i, prefix);
+		int nbProducersThreads = nbThreads/2;
+		int nbConsumersThreads = nbThreads/2;
+*/		
+		string prefix = "a";
+		string prefix2 = "b";
+/*
+		for (int i = 0; i < nbProducersThreads; ++i) {
+			t[i] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, i, Prefixes[i]);
 		}
 
-		//Launch a group of producers threads
-		for (int i = 0; i < nbThreads; ++i) {
-			t[i] = std::thread(Consumer_call_from_thread, i);
+		for (int i = 0; i < nbConsumersThreads; ++i) {
+			t[i] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, i, hashFromUser);
 		}
 */
 		// Function : Producer_call_from_thread(threadID, prefix)
 		// Consumer_call_from_thread(threadID, hash)
-		t[1] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 1, prefix);
-		t[2] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 2, hashFromUser);
 
+		t[1] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 1, prefix);
+		t[2] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 2, prefix2);
+		t[3] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 3, hashFromUser);
+		t[4] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 4, hashFromUser);
+		
 		//Join the threads with the main thread
 		t[1].join();
 		t[2].join();
+		t[3].join();
+		t[4].join();
+/*
+		for (int i = 0; i < nbThreads; ++i) {
+			t[i].join();
+		}
+*/
 	}
 
 	~ProducerConsumer()
@@ -57,7 +82,7 @@ public:
 
 private:
 	Queue queue;
-	std::mutex mutex;										// mutex for critical section
+	std::mutex mutex;											// Mutex for critical section
 	const uint8_t nbProducer=1;
     const uint8_t nbConsumer=1;
 	//std::deque<std::thread> producers;
@@ -73,7 +98,7 @@ private:
 		cout << "produce()..."<<endl;
 		
 		for(uint8_t i = 0; i <= stringlength; i++){
-			Produce(i, prefix);								// Produce words
+			Produce(i, prefix, tid);								// Produce words
 		}
 		cout << "produce() done !" << endl;
     }
@@ -81,21 +106,21 @@ private:
     void Consumer_call_from_thread(int tid, string hashFromUser)
     {	
     	cout << "Consume by thread n°" << tid << "\n" << endl;
-    	Consume(hashFromUser);								// Consume words
+    	Consume(hashFromUser, tid);										// Consume words
     }
 
 	// Recursive function, keeps clocking characters
 	// until length is reached
-	void Produce(unsigned int length, string s)
+	void Produce(unsigned int length, string s, int tid)
 	{
 		if(length == 0) // when length has been reached
 		{
-			cout << "produce : " << s << "\n"; 										// Print text out
+			cout << "thread n°"<< tid << " produce : " << s << "\n"; 										// Print text out
 			{
 				lock_guard<std::mutex> lock(this->mutex);							// Lock mutex for this scope duration
 				queue.push(s);
 			}
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));				// Sleep for 1 second
+			std::this_thread::sleep_for(std::chrono::milliseconds(500));				// Sleep for 1 second
 			return;
 		}
 
@@ -104,11 +129,11 @@ private:
 			// Create new string with next character
 			// Call generate again until string has reached it's length
 			string appended = s + Alphabets[i];
-			Produce(length-1, appended);
+			Produce(length-1, appended, tid);
 		}
 	}
 
-	void Consume(string hashFromUser){
+	void Consume(string hashFromUser, int tid){
 		cout << "consume()..." << endl;
 
 		while (!queue.empty())
@@ -119,7 +144,7 @@ private:
 				string text = queue.front();										// get the text from the global queue
 				queue.pop();														// remove the text in the global queue
 
-		    	cout << "consume() pop() : " << text << endl;
+		    	cout << "thread n°"<< tid << " ***consume*** : " << text << endl;
 
 				char data[text.size()+1];
 				strcpy(data, text.c_str());
@@ -144,7 +169,7 @@ private:
 int main(int argc, char* argv[])
 {	
 	// To compile : g++ ProducerConsumer.cpp -std=c++11 -lpthread -o ProducerConsumer
-	// To run : ./ProducerConsumer 2 af1c08098cf119bb4981729721714a4b9948dbcb6b5fff21cb0f45f06ad1f7ea
+	// To run : ./ProducerConsumer 2 fb8e20fc2e4c3f248c60c39bd652f3c1347298bb977b8b4d5903b85055620603
 	uint8_t nbThreadsEnterred = 0;
 	std::string hashFromUser = "";
 	
@@ -166,7 +191,7 @@ int main(int argc, char* argv[])
 	    	if(hashFromUser.length() == 64){
 	    		ProducerConsumer producerConsumer(nbThreadsEnterred, hashFromUser);			// Proceed
 	    	}else{
-	    		std::cout<<"Hash : "<<hashFromUser<<endl;
+	    		std::cout<<"Hash received : "<<hashFromUser<<endl;
 	    		cout << "Incorrect hash. Check that the number of chars are equal to 64\n";
 	    	}
 	    	break;
