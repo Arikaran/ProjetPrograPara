@@ -6,7 +6,37 @@
 
 #IncludeRegexTransform: 
 
+/home/chris-gagoude/Documents/Parallelisme/ProjetPrograPara/src/SHA256.h
+stdio.h
+-
+iostream
+-
+string
+-
+cstring
+-
+
 /home/chris-gagoude/Documents/Parallelisme/ProjetPrograPara/src/main.cpp
 iostream
+-
+queue
+-
+mutex
+-
+thread
+-
+string
+-
+functional
+-
+thread.h
+/home/chris-gagoude/Documents/Parallelisme/ProjetPrograPara/src/thread.h
+SHA256.h
+/home/chris-gagoude/Documents/Parallelisme/ProjetPrograPara/src/SHA256.h
+
+/home/chris-gagoude/Documents/Parallelisme/ProjetPrograPara/src/thread.h
+iostream
+-
+string
 -
 
