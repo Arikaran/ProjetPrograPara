@@ -1,3 +1,15 @@
+#Groupe
+Samuel BIJOU
+Thomas ALLARD
+Chris GAGOUDE
+
+#To run  : /* To compile : 
+		cd src
+		cmake ..
+		make
+# To run : ./main 4 e061428097b79aab3d587dbb523e19f4e58b67346699208c81f8b5a9449ffe6f
+
+
 # ProjetPrograPara
 Projet de Programmation & Parallélisme
 --------------------------------------

@@ -3,397 +3,236 @@
 #include <mutex>
 #include <thread>
 #include <string>
-#include <functional>
+#include <condition_variable>
 #include "thread.h"
 #include "SHA256.h"
 
-using namespace std;
+using namespace std ;
 
 
-class ProducerConsumer {
-public:
-	using Queue = std::queue<string>;						// Queue shared by producers and consumers						
+class ProducerConsumer
+{
+	public :
+		using Queue = std::queue<string> ; 									// Queue shared by producers and consumers						
+		std::mutex mutex ; 													// Mutex for critical section
+		Queue queue ;
+		condition_variable cond_var;
 
-	// Create alphabet table
-	const char Alphabets[63] =
-	{
-		'a', 'b', 'c', 'd',	'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-		'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-		'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ' '
-	};
-
-	const char Prefixes[63] =
-	{
-		'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 
-		'k', 'l', 'm', 'n',	'o', 'p', 'q', 'r', 's', 't', 
-		'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D',
-		'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
-		'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
-		'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', 
-		'8', '9', ' '
-	};
-
-	ProducerConsumer(int nbThreads, std::string hashFromUser)
-	{
-		thread t[nbThreads];
-
-		//int nbProducersThreads = nbThreads/2;
-
-		string prefix0 = " "; string prefix1 = "a";string prefix2 = "b";string prefix3 = "c";string prefix4 = "d";string prefix5 = "e";string prefix6 = "f";string prefix7 = "g";
-		string prefix8 = "h";string prefix9 = "i";string prefix10 = "j";string prefix11 = "k";string prefix12 = "l";string prefix13 = "m";string prefix14 = "n";
-		string prefix15 = "o";string prefix16 = "p";string prefix17 = "q";string prefix18 = "r";string prefix19 = "s";string prefix20 = "t";
-		string prefix21 = "u";string prefix22 = "v";string prefix23 = "w";string prefix24 = "x";string prefix25 = "y";string prefix26 = "z";
-/*
-		for (int i = 0; i < nbProducersThreads; ++i) {
-			t[i] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, i, &Prefixes[i]);
-		}
-
-		for (int i = 0; i < nbConsumersThreads; ++i) {
-			t[i] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, i, hashFromUser);
-		}
-*/
-		if(nbThreads%2 != 0){
-			cout<<"The number of threads is not valid. Please choose a pair number and greater than 0."<< endl;
-			exit(0);
-		}
-		// Function : Producer_call_from_thread(threadID, prefix)
-		// Function : Consumer_call_from_thread(threadID, hash)
-		switch (nbThreads) {
-			case 0 : 
-					cout<<"The number of threads is not valid. Please choose a pair number and greater than 0."<< endl;
-					exit(0);
-					break;
-			case 2 : 
-				t[0] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 0, prefix1);
-				t[1] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 1, hashFromUser);
-				
-				t[0].join();t[1].join();
-				break;
-			case 4 : 
-				t[0] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 0, prefix1);
-				t[1] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 1, prefix2);
-				t[2] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 2, hashFromUser);
-				t[3] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 3, hashFromUser);
-				
-				t[0].join();t[1].join();t[2].join();t[3].join();
-				break;
-			case 6:
-				t[0] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 0, prefix1);
-				t[1] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 1, prefix2);
-				t[2] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 2, prefix3);
-				t[3] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 3, hashFromUser);
-				t[4] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 4, hashFromUser);
-				t[5] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 5, hashFromUser);
-				
-				t[0].join();t[1].join();t[2].join();
-				t[3].join();t[4].join();t[5].join();
-				break;
-			case 8:
-				t[0] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 0, prefix1);
-				t[1] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 1, prefix2);
-				t[2] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 2, prefix3);
-				t[3] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 3, prefix4);
-				t[4] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 4, hashFromUser);
-				t[5] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 5, hashFromUser);
-				t[6] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 6, hashFromUser);
-				t[7] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 7, hashFromUser);
-				
-				t[0].join();t[1].join();t[2].join();t[3].join();
-				t[4].join();t[5].join();t[6].join();t[7].join();
-				break;
-			case 10:
-				t[0] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 0, prefix1);
-				t[1] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 1, prefix2);
-				t[2] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 2, prefix3);
-				t[3] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 3, prefix4);
-				t[4] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 4, prefix5);
-				t[5] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 5, hashFromUser);
-				t[6] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 6, hashFromUser);
-				t[7] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 7, hashFromUser);
-				t[8] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 8, hashFromUser);
-				t[9] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 9, hashFromUser);
-				
-				t[0].join();t[1].join();t[2].join();t[3].join();t[4].join();
-				t[5].join();t[6].join();t[7].join();t[8].join();t[9].join();
-				break;
-			case 12:
-				t[0] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 0, prefix1);
-				t[1] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 1, prefix2);
-				t[2] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 2, prefix3);
-				t[3] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 3, prefix4);
-				t[4] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 4, prefix5);
-				t[5] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 5, prefix6);
-				t[6] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 6, hashFromUser);
-				t[7] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 7, hashFromUser);
-				t[8] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 8, hashFromUser);
-				t[9] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 9, hashFromUser);
-				t[10] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 10, hashFromUser);
-				t[11] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 11, hashFromUser);
-
-				t[0].join();t[1].join();t[2].join();t[3].join();t[4].join();t[5].join();
-				t[6].join();t[7].join();t[8].join();t[9].join();t[10].join();t[11].join();
-				break;
-			case 14:
-				t[0] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 0, prefix1);
-				t[1] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 1, prefix2);
-				t[2] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 2, prefix3);
-				t[3] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 3, prefix4);
-				t[4] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 4, prefix5);
-				t[5] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 5, prefix6);
-				t[6] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 6, prefix7);
-				t[7] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 7, hashFromUser);
-				t[8] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 8, hashFromUser);
-				t[9] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 9, hashFromUser);
-				t[10] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 10, hashFromUser);
-				t[11] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 11, hashFromUser);
-				t[12] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 12, hashFromUser);
-				t[13] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 13, hashFromUser);
-
-				t[0].join();t[1].join();t[2].join();t[3].join();t[4].join();t[5].join();t[6].join();t[7].join();
-				t[8].join();t[9].join();t[10].join();t[11].join();t[12].join();t[13].join();
-				break;
-			case 16:
-				t[0] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 0, prefix1);
-				t[1] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 1, prefix2);
-				t[2] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 2, prefix3);
-				t[3] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 3, prefix4);
-				t[4] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 4, prefix5);
-				t[5] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 5, prefix6);
-				t[6] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 6, prefix7);
-				t[7] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 7, prefix8);
-				t[8] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 8, hashFromUser);
-				t[9] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 9, hashFromUser);
-				t[10] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 10, hashFromUser);
-				t[11] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 11, hashFromUser);
-				t[12] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 12, hashFromUser);
-				t[13] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 13, hashFromUser);
-				t[14] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 14, hashFromUser);
-				t[15] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 15, hashFromUser);
-
-				t[0].join();t[1].join();t[2].join();t[3].join();t[4].join();t[5].join();t[6].join();t[7].join();t[8].join();t[9].join();
-				t[10].join();t[11].join();t[12].join();t[13].join();t[14].join();t[15].join();
-				break;
-			case 18:
-				t[0] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 0, prefix1);
-				t[1] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 1, prefix2);
-				t[2] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 2, prefix3);
-				t[3] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 3, prefix4);
-				t[4] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 4, prefix5);
-				t[5] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 5, prefix6);
-				t[6] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 6, prefix7);
-				t[7] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 7, prefix8);
-				t[8] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 8, prefix9);
-				t[9] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 9, hashFromUser);
-				t[10] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 10, hashFromUser);
-				t[11] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 11, hashFromUser);
-				t[12] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 12, hashFromUser);
-				t[13] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 13, hashFromUser);
-				t[14] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 14, hashFromUser);
-				t[15] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 15, hashFromUser);
-				t[16] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 16, hashFromUser);
-				t[17] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 17, hashFromUser);
-
-				t[0].join();t[1].join();t[2].join();t[3].join();t[4].join();t[5].join();t[6].join();t[7].join();t[8].join();t[9].join();
-				t[10].join();t[11].join();t[12].join();t[13].join();t[14].join();t[15].join();t[16].join();t[17].join();
-				break;
-			case 20:
-				t[0] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 0, prefix1);
-				t[1] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 1, prefix2);
-				t[2] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 2, prefix3);
-				t[3] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 3, prefix4);
-				t[4] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 4, prefix5);
-				t[5] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 5, prefix6);
-				t[6] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 6, prefix7);
-				t[7] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 7, prefix8);
-				t[8] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 8, prefix9);
-				t[9] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 9, prefix10);
-				t[10] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 10, hashFromUser);
-				t[11] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 11, hashFromUser);
-				t[12] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 12, hashFromUser);
-				t[13] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 13, hashFromUser);
-				t[14] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 14, hashFromUser);
-				t[15] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 15, hashFromUser);
-				t[16] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 16, hashFromUser);
-				t[17] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 17, hashFromUser);
-				t[18] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 18, hashFromUser);
-				t[19] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 19, hashFromUser);
-
-				t[0].join();t[1].join();t[2].join();t[3].join();t[4].join();t[5].join();t[6].join();t[7].join();t[8].join();t[9].join();
-				t[10].join();t[11].join();t[12].join();t[13].join();t[14].join();t[15].join();t[16].join();t[17].join();t[18].join();t[19].join();
-				break;
-			case 22:
-				t[0] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 0, prefix1);
-				t[1] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 1, prefix2);
-				t[2] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 2, prefix3);
-				t[3] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 3, prefix4);
-				t[4] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 4, prefix5);
-				t[5] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 5, prefix6);
-				t[6] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 6, prefix7);
-				t[7] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 7, prefix8);
-				t[8] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 8, prefix9);
-				t[9] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 9, prefix10);
-				t[10] = std::thread(&ProducerConsumer::Producer_call_from_thread, this, 10, prefix0);
-				t[11] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 11, hashFromUser);
-				t[12] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 12, hashFromUser);
-				t[13] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 13, hashFromUser);
-				t[14] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 14, hashFromUser);
-				t[15] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 15, hashFromUser);
-				t[16] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 16, hashFromUser);
-				t[17] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 17, hashFromUser);
-				t[18] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 18, hashFromUser);
-				t[19] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 19, hashFromUser);
-				t[20] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 20, hashFromUser);
-				t[21] = std::thread(&ProducerConsumer::Consumer_call_from_thread, this, 21, hashFromUser);
-
-				t[0].join();t[1].join();t[2].join();t[3].join();t[4].join();t[5].join();t[6].join();t[7].join();t[8].join();
-				t[9].join();t[10].join();t[11].join();t[12].join();t[13].join();t[14].join();t[15].join();t[16].join();
-				t[17].join();t[18].join();t[19].join();t[20].join();t[21].join();
-				break;
-			default:
-					cout<<"The number of threads is not valid. Please choose a pair number and greater than 0."<< endl;
-					exit(0);
-					break;
-		}
-
-/*
-		for (int i = 0; i < nbThreads; ++i) {
-			t[i].join();
-		}
-*/
-	}
-
-	~ProducerConsumer()
-	{
-		
-	}
-
-private:
-	Queue queue;
-	std::mutex mutex;																// Mutex for critical section
-	const uint8_t nbProducer=1;
-    const uint8_t nbConsumer=1;
-	//std::deque<std::thread> producers;
-	//std::deque<std::thread> consumers;
-	//uint8_t nbThreads;
-    string hashFromUser="";
-
-    void Producer_call_from_thread(int tid, string prefix)
-    {	
-		cout << "Produce by thread n°" << tid << endl;
-		unsigned int stringlength = 63;
-		
-		cout << "produce()..."<<endl;
-		
-		for(uint8_t i = 0; i <= stringlength; i++){
-			Produce(i, prefix, tid);												// Produce words
-		}
-		cout << "produce() done !" << endl;
-    }
-
-    void Consumer_call_from_thread(int tid, string hashFromUser)
-    {	
-    	cout << "Consume by thread n°" << tid << endl;
-    	Consume(hashFromUser, tid);													// Consume words
-    }
-
-	// Recursive function, keeps clocking characters
-	// until length is reached
-	void Produce(unsigned int length, string s, int tid)
-	{
-		if(length == 0) // when length has been reached
+		// Create alphabet table
+		const string Alphabets[63] =
 		{
-			cout << "thread n°"<< tid << " produce : " << s << "\n"; 				// Print text out
+			"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z",
+			"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
+			"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", " "
+		} ;
+
+		bool done = false ;
+		bool notified = false;
+
+		ProducerConsumer(unsigned int nbThreads, std::string hashFromUser)
+		{
+			if(nbThreads % 2 != 0)
 			{
-				lock_guard<std::mutex> lock(this->mutex);							// Lock mutex for this scope duration
-				queue.push(s);
+				cout << "The number of threads is not valid. Please choose a pair number and greater than 0." << endl ;
+				exit(0) ;
 			}
-			std::this_thread::sleep_for(std::chrono::milliseconds(500));			// Sleep for 1 second
-			return;
-		}
 
-		for(unsigned int i = 0; i < 63; i++) 										// Iterate through Alphabets
-		{
-			// Create new string with next character
-			// Call generate again until string has reached it's length
-			string appended = s + Alphabets[i];
-			Produce(length-1, appended, tid);
-		}
-	}
+			thread t[nbThreads] ;
 
-	void Consume(string hashFromUser, int tid){
-		cout << "consume()..." << endl;
-
-		while (!queue.empty())
-		{
+			if(nbThreads > 126)
 			{
-				lock_guard<std::mutex> lock(this->mutex);							// Lock mutex for this scope duration
+				nbThreads = 126 ;
+			}
 
-				string text = queue.front();										// get the text from the global queue
-				queue.pop();														// remove the text in the global queue
+			unsigned int threadBegin = 0 ;
+			unsigned int threadEnd = 0 ;
+			unsigned int firstGap = (63 / (nbThreads / 2)) + (63 % (nbThreads / 2)) ;
 
-		    	cout << "thread n°"<< tid << " ***consume*** : " << text << endl;
+			for(unsigned int i = 0 ; i < (nbThreads / 2) ; i++)
+			{
+				if(i != 0)
+				{
+					threadEnd += (63 / (nbThreads / 2)) ;
+				}
 
-				char data[text.size()+1];
-				strcpy(data, text.c_str());
+				else
+				{
+					threadEnd += firstGap ;
+				}
 
-				string sha256 = SHA256(data);										// hash the text
+			    t[i] = std::thread(&ProducerConsumer::Produce, this, Alphabets[i], threadBegin, threadEnd, (i + 1)) ;
 
-				bool compare = compareHashes(hashFromUser, sha256);					// hashes comparison
+			    	//done = true;
+        			//cond_var.notify_one();
 
-				if(compare == 1){
-					cout << "The hash "<< sha256 << " matches with the text : " << text << endl;
-					exit(0);		
+			    t[(nbThreads / 2) + i] = std::thread(&ProducerConsumer::Consume, this, hashFromUser, (i + 1)) ;
+
+				threadBegin = threadEnd ;
+			}
+
+			for(unsigned int i = 0 ; i < (nbThreads / 2) ; i++)
+			{
+			    	t[i].join() ;
+			    	t[(nbThreads / 2) + i].join() ;
+			}
+		}
+
+		~ProducerConsumer()
+		{
+		
+		}
+
+	private :
+		
+		
+	    string hashFromUser = "" ;
+
+		void generateWord(string word, unsigned int wordLength, unsigned int wordLimit, unsigned int tid)
+		{
+			if(wordLength < wordLimit)
+			{
+				for(unsigned int i = 0 ; i < 63 ; i++) // Iterate through Alphabets
+				{
+					// Create new string with next character
+					// Call generate again until string has reached it's length
+					string newWord = word + Alphabets[i] ;
+					wordLength++ ;
+					generateWord(newWord, wordLength, wordLimit, tid) ;
+				}
+
+			}
+
+			else
+			{
+				cout << "Thread n°" << tid << " +++ produce +++ : " << word << "\n" ; // Print text out
+				{
+					lock_guard<std::mutex> lock(this->mutex) ; // Lock mutex for this scope duration
+					queue.push(word) ;
+					//notified = true;
+					//cond_var.notify_one();
+				}
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(1)) ; // Sleep for 0,001 second
+
+				return ;
+			}
+		}
+
+		// Recursive function, keeps clocking characters until length is reached
+		void Produce(string s, unsigned int threadBegin, unsigned int threadEnd, unsigned int tid)
+		{
+			cout << "Produce by thread n°" << tid << endl ;
+	
+			cout << "Produce()..."<< endl ;
+
+			unsigned int size = 1 ;
+			unsigned int i = threadBegin ;
+
+			while(i < threadEnd) // Iterate through Alphabets
+			{
+				generateWord(Alphabets[i], 1, size, tid) ;
+
+				if(i == (threadEnd - 1)) // For do a new loop
+				{
+					i = threadBegin ;
+					size++ ;
+				}
+
+				else
+				{
+					i++ ;
 				}
 			}
-			std::this_thread::sleep_for(std::chrono::milliseconds(600));			// Sleep for 1 second
-		}
-		cout << "consume() done !" << endl;
-	}
 
-};
+			cout << "Produce() done !" << endl ;
+		}
+
+		void Consume(string hashFromUser, int tid)
+		{
+			cout << "Consume by thread n°" << tid << endl ;
+
+			cout << "Consume()..." << endl ;
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(2)) ; // Sleep for 0,002 second
+
+			while(!queue.empty())
+			{
+				{
+					lock_guard<std::mutex> lock(mutex) ; 				// Lock mutex for this scope duration
+
+					string text = queue.front() ; 						// Get the text from the global queue
+					queue.pop() ; 										// Remove the text in the global queue
+
+			    		cout << "Thread n°"<< tid << " --- consume --- : " << text << endl ;
+
+					char data[text.size() + 1] ;
+					strcpy(data, text.c_str()) ;
+
+					string sha256 = SHA256(data) ; 						// Hash the text
+
+					bool compare = compareHashes(hashFromUser, sha256) ; // Hashes comparison
+
+					if(compare == 1)
+					{
+						cout << "The hash "<< sha256 << " matches with the text : " << text << endl ;
+						cout << text << endl ;
+
+						exit(0) ;		
+					}
+				}
+
+				std::this_thread::sleep_for(std::chrono::milliseconds(2)) ; // Sleep for 0,002 second
+			}
+
+			cout << "Consume() done !" << endl ;
+		}
+} ;
 
 
 int main(int argc, char* argv[])
 {	
 	/* To compile : 
 		cd src
-		cmake ..
-		make
+		cmake .. && make
 	*/
 	// To run : ./main 4 e061428097b79aab3d587dbb523e19f4e58b67346699208c81f8b5a9449ffe6f
 	
-	int nbThreadsEnterred = 0;
-	std::string hashFromUser = "";
+	unsigned int nbThreadsEnterred = 0 ;
+	string hashFromUser = "" ;
 	
-	switch (argc) {
-	    case 1:
-	        cout << "No arguments find found. Try again with exactly two arguments\n";
-	        break;
-	    case 2:
-	        cout << "Not enough arguments. Try again with exactly two arguments\n";
-	        break;
-	    case 3:
-	    	nbThreadsEnterred = atoi(argv[1]);
+	switch (argc)
+	{
+		case 1 :
+			cout << "No arguments find found. Try again with exactly two arguments\n" ;
+	        	break ;
+		case 2 :
+	        	cout << "No arguments find found. Try again with exactly two arguments\n" ;
+	        	break ;
+	    	case 3 :
+	    		nbThreadsEnterred = atoi(argv[1]) ;
 
-			for(int i = 2; i < argc; i++)
+			for(int i = 2 ; i < argc ; i++)
 			{
-				hashFromUser += argv[i];													//Get the hash passed in argument
+				hashFromUser += argv[i] ; 												// Get the hash passed in argument
 			}
 
-	    	if(hashFromUser.length() == 64){
-	    		ProducerConsumer producerConsumer(nbThreadsEnterred, hashFromUser);			// Proceed
-	    	}else{
-	    		cout<<"Hash received : "<<hashFromUser<<endl;
-	    		cout << "Incorrect hash. Check that the number of chars are equal to 64\n";
-	    	}
-	    	break;
-	    default:
-	        cout << "Too many things in the command line.";
-	        exit(-1);
-	        break;
-	};
+	    		if(hashFromUser.length() == 64)
+			{
+	    			ProducerConsumer producerConsumer(nbThreadsEnterred, hashFromUser) ; // Proceed
+	    		}
 
-	return 0;
+			else
+			{
+	    			cout << "Hash received : " << hashFromUser << endl ;
+	    			cout << "Incorrect hash. Check that the number of chars are equal to 64\n" ;
+	    		}
+	    		break ;
+	    	default :
+	        	cout << "Too many things in the command line." ;
+	        	exit(-1) ;
+	        	break ;
+	} ;
+
+	return 0 ;
 }
-
 
